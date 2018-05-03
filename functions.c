@@ -10,7 +10,8 @@ typedef struct minterm{
 
 typedef struct minterm_group{
     minterm *m;
-    int id;
+    int n_elems;
+    int n_ones;
 } minterm_group;
 
 int n_vars;
@@ -68,14 +69,19 @@ void count_ones(minterm *minterms) {
                 minterms[i].ones++;
             }
         }
-        printf("minterm = %s    1s = %d\n", minterms[i].v_bit, minterms[i].ones);
+        printf("minterm = %s    #   1s = %d\n", minterms[i].v_bit, minterms[i].ones);
     }
 }
 
+// void identify_groups(minterm *minterms){
+//
+// }
+
 // Separates the minterm's bits in groups depend on the number of 1s
 void classify_groups(minterm *minterms){
-    int counter, aux_mint[n_vars][2], ignore[n_vars], ignore_counter = 0;
-    for (int i = 0; i < n_vars; i++){
+    int counter, aux_mint[n_vars][2], ignore_counter = 0, index = 0;
+    // Identifies group of minterms that can be formed
+    for (int i = 0; i <= n_vars; i++){
         counter = 0;
         for (int j = 0; j < n_mint; j++){
             if (minterms[j].ones == i){
@@ -83,40 +89,24 @@ void classify_groups(minterm *minterms){
             }
         }
         if (counter == 0){
-            ignore[ignore_counter] = i;
-            printf("ignore = %d\n", ignore[ignore_counter]);
             ignore_counter++;
+            index--;
         } else{
-            aux_mint[i][0] = i;
-            aux_mint[i][1] = counter;
-            printf("%d0: %d     %d1: %d\n", i, i, aux_mint[i][0], aux_mint[i][1]);
+            aux_mint[index][0] = i;
+            aux_mint[index][1] = counter;
+            printf("%d: #1s: %d     #grupos: %d\n", index, aux_mint[index][0], aux_mint[index][1]);
         }
+        index++;
     }
-    printf("ignore_counter = %d\n", ignore_counter);
+    printf("------ignore_counter = %d\n", ignore_counter);
 
-    minterm_group *groups = malloc(sizeof(minterm)*(n_vars - ignore_counter));
-    for (int i = 0; i <= n_vars - ignore_counter; i++){
-        for (int j = 0; j < ignore_counter; j++){
-            if (i == ignore[j]){
-                continue;
-            }
-            groups[i].id = i;
-            groups[i].m = malloc(sizeof(minterm)*aux_mint[i][1]);
-            printf("i = %d  aux_mint[i][1] = %d     groups = %d\n", i, aux_mint[i][1], groups[i].id);
-        }
+    // Allocates memory to group the minterms
+    minterm_group *groups = malloc(sizeof(minterm)*(n_vars-ignore_counter+1));
+    for (int i = 0; i <  n_vars-ignore_counter+1; i++){
+        groups[i].n_ones = aux_mint[i][0];
+        groups[i].n_elems = aux_mint[i][1];
+        groups[i].m = malloc(sizeof(minterm)*aux_mint[i][1]);
+        printf("#1s = %d    #grupos: %d\n", aux_mint[i][0], aux_mint[i][1]);
     }
     // *armazenar os mintermos dentro de cada grupo*
-    for (int i = 0; i < groups[i].id; i++){
-        for (int j = 0; j < n_vars - ignore_counter; j++){
-            for (int k = 0; k < n_mint; k++){
-                for (int l = 0; l < ignore_counter; l++){
-                    if (minterms[k].ones == ignore[l]){
-                        continue;
-                    }
-                    groups[i].m[j].v_bit = minterms[k].v_bit;
-                    printf("groups = %s     i = %d j = %d k = %d\n", groups[i].m[j].v_bit, i, j, k);
-                }
-            }
-        }
-    }
 }
