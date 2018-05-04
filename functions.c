@@ -73,13 +73,10 @@ void count_ones(minterm *minterms) {
     }
 }
 
-// void identify_groups(minterm *minterms){
-//
-// }
-
 // Separates the minterm's bits in groups depend on the number of 1s
-void classify_groups(minterm *minterms){
-    int counter, aux_mint[n_vars][2], ignore_counter = 0, index = 0;
+minterm_group *classify_groups(minterm *minterms){
+    int ignore_counter = 0, index = 0, tab_minterms[n_vars][2], counter;
+
     // Identifies group of minterms that can be formed
     for (int i = 0; i <= n_vars; i++){
         counter = 0;
@@ -92,9 +89,9 @@ void classify_groups(minterm *minterms){
             ignore_counter++;
             index--;
         } else{
-            aux_mint[index][0] = i;
-            aux_mint[index][1] = counter;
-            printf("%d: #1s: %d     #grupos: %d\n", index, aux_mint[index][0], aux_mint[index][1]);
+            tab_minterms[index][0] = i;
+            tab_minterms[index][1] = counter;
+            printf("%d: #1s: %d     #grupos: %d\n", index, tab_minterms[index][0], tab_minterms[index][1]);
         }
         index++;
     }
@@ -103,10 +100,27 @@ void classify_groups(minterm *minterms){
     // Allocates memory to group the minterms
     minterm_group *groups = malloc(sizeof(minterm)*(n_vars-ignore_counter+1));
     for (int i = 0; i <  n_vars-ignore_counter+1; i++){
-        groups[i].n_ones = aux_mint[i][0];
-        groups[i].n_elems = aux_mint[i][1];
-        groups[i].m = malloc(sizeof(minterm)*aux_mint[i][1]);
-        printf("#1s = %d    #grupos: %d\n", aux_mint[i][0], aux_mint[i][1]);
+        groups[i].n_ones = tab_minterms[i][0];
+        groups[i].n_elems = tab_minterms[i][1];
+        groups[i].m = malloc(sizeof(minterm)*tab_minterms[i][1]);
+        printf("#1s = %d    #grupos: %d\n", tab_minterms[i][0], tab_minterms[i][1]);
     }
-    // *armazenar os mintermos dentro de cada grupo*
+
+    // Store minterms in each correspondent group
+    for (int i = 0; i < n_vars-ignore_counter+1; i++){
+        for (int j = 0, k = 0; j < groups[i].n_elems && k < n_mint; k++){
+            if (minterms[k].ones == groups[i].n_ones){
+                groups[i].m[j].v_bit = minterms[k].v_bit;
+                groups[i].m[j].v_int = minterms[k].v_int;
+                j++;
+            }
+        }
+    }
+    for (int i = 0; i < n_vars-ignore_counter+1; i++)
+        for (int j = 0; j < groups[i].n_elems; j++)
+            printf("#1s: %d   bit: %s   int: %d\n", groups[i].n_ones, groups[i].m[j].v_bit, groups[i].m[j].v_int);
+}
+
+void compare_groups(minterm_group *groups){
+
 }
