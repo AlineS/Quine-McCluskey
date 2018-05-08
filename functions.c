@@ -4,6 +4,10 @@
 
 #define NMINTERM 2
 
+int n_mint;
+int n_vars;
+int n_ones_groups;
+
 typedef struct minterm{
     int v_int;
     char *v_bit;
@@ -17,16 +21,17 @@ typedef struct minterm_group{
     int n_ones;
 } minterm_group;
 
-typedef struct cmp_minterms{
-    int *grouped_m;
-    int n_diffs;
-    int diff_pos;
-    minterm *m;
-} cmp_minterms;
+typedef struct grp_minterm{
+    char *m;
+    int pos;
+    char checked;
+} grp_minterm;
 
-int n_mint;
-int n_vars;
-int n_ones_groups;
+typedef struct cmp_minterms{
+    int n_elems;
+    int *grouped_m;
+    grp_minterm *g_minterms;
+} cmp_minterms;
 
 // Process the number of minterms e which are the minterms
 minterm *read_minterms(int argc, char const *argv[]){
@@ -131,12 +136,11 @@ minterm_group *classify_groups(minterm *minterms){
     return groups;
 }
 
-// Compare adjacent groups looking for binaries with just one bit of difference
-void compare_groups(minterm_group *groups){
-    int diff_counter, diff_pos;
-    cmp_minterms *cmp_m = malloc(sizeof(cmp_minterms)*n_ones_groups-1);
-    cmp_m->grouped_m = malloc(sizeof(int)*NMINTERM);
+// Makes the first comparison between minterms
+void step_one(cmp_minterms *cmp_m, minterm_group *groups){
+    int diff_counter, diff_pos, n_minterm, subindex, index = 0;
     for (int i = 0; i < n_ones_groups-1; i++){
+        subindex = 0;
         for (int j = 0; j < groups[i].n_elems; j++){
             for (int k = 0; k < groups[i+1].n_elems; k++){
                 diff_counter = 0;
@@ -146,18 +150,36 @@ void compare_groups(minterm_group *groups){
                         diff_pos = l;
                     }
                 }
-                if (diff_counter == 1){
-                    printf("%dx%d  %s - %s   diff_counter = %d diff_pos = %d\n", groups[i].n_ones, groups[i+1].n_ones, groups[i].m[j].v_bit, groups[i+1].m[k].v_bit, diff_counter, diff_pos);
-                    cmp_m[i].grouped_m[0] = groups[i].m[j].v_int;
-                    cmp_m[i].grouped_m[1] = groups[i+1].m[k].v_int;
-                    cmp_m[i].diff_pos = diff_pos;
-                    cmp_m[i].m = malloc(sizeof(minterm)*);
-                    //salvar grupos de j e k
-                    //salvar diff
-                    //salvar posicao
-                    //salvar bits
+                if (diff_counter == 1 && index <= n_ones_groups-1){
+                    cmp_m[index].grouped_m[0] = groups[i].m[j].v_int;
+                    cmp_m[index].grouped_m[1] = groups[i+1].m[k].v_int;
+                    n_minterm = groups[i].n_elems*groups[i+1].n_elems;
+                    cmp_m[index].g_minterms = malloc(sizeof(grp_minterm)*n_minterm);
+                    for (int m = 0; m < n_minterm; m++){
+                        cmp_m[index].g_minterms[m].m = malloc(sizeof(char)*n_vars);
+                    }
+                    cmp_m[index].g_minterms[subindex].pos = diff_pos;
+                    strcpy(cmp_m[index].g_minterms[subindex].m, groups[i].m[j].v_bit);
+                    cmp_m[index].g_minterms[subindex].m[diff_pos] = '-';
+                    printf("#1s: %d e %d | grupos: %d e %d | #combinacoes: %d | i: %d j: %d | bit: %s\n", groups[i].n_ones, groups[i+1].n_ones, cmp_m[index].grouped_m[0], cmp_m[index].grouped_m[1], n_minterm, index, subindex, cmp_m[index].g_minterms[subindex].m);
+                    subindex++;
+                    groups[i].m[j].checked = 'v';
+                    groups[i+1].m[k].checked = 'v';
                 }
             }
         }
+        cmp_m[index].n_elems = subindex;
+        printf("index: %d - #elem: %d\n\n", index, cmp_m[index].n_elems);
+        index++;
     }
+}
+
+// Compare adjacent groups looking for binaries with just one bit of difference
+void compare_groups(minterm_group *groups){
+    cmp_minterms *cmp_m = malloc(sizeof(cmp_minterms)*n_ones_groups-1);
+    for (int i = 0; i < n_ones_groups; i++){
+        cmp_m[i].grouped_m = malloc(sizeof(int)*NMINTERM);
+    }
+    step_one(cmp_m, groups);
+    // step_two();
 }
