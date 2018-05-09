@@ -7,9 +7,11 @@
 int n_mint;
 int n_vars;
 int n_ones_groups;
+int n_steps = 0;
 
 typedef struct minterm{
     int v_int;
+    int diff_pos;
     char *v_bit;
     int ones;
     char checked;
@@ -19,19 +21,33 @@ typedef struct minterm_group{
     minterm *m;
     int n_elems;
     int n_ones;
+    int *int_group;
 } minterm_group;
 
-typedef struct grp_minterm{
-    char *m;
-    int pos;
-    char checked;
-} grp_minterm;
-
-typedef struct cmp_minterms{
-    int n_elems;
-    int *grouped_m;
-    grp_minterm *g_minterms;
-} cmp_minterms;
+// typedef struct minterm{
+//     int v_int;
+//     char *v_bit;
+//     int ones;
+//     char checked;
+// } minterm;
+//
+// typedef struct minterm_group{
+//     minterm *m;
+//     int n_elems;
+//     int n_ones;
+// } minterm_group;
+//
+// typedef struct grp_minterm{
+//     char *m;
+//     int pos;
+//     char checked;
+// } grp_minterm;
+//
+// typedef struct cmp_minterms{
+//     int n_elems;
+//     int *grouped_m;
+//     grp_minterm *g_minterms;
+// } cmp_minterms;
 
 // Process the number of minterms e which are the minterms
 minterm *read_minterms(int argc, char const *argv[]){
@@ -85,7 +101,6 @@ void count_ones(minterm *minterms) {
                 minterms[i].ones++;
             }
         }
-        printf("minterm = %s    #   1s = %d\n", minterms[i].v_bit, minterms[i].ones);
     }
 }
 
@@ -115,11 +130,11 @@ minterm_group *classify_groups(minterm *minterms){
 
     // Allocates memory to group the minterms
     n_ones_groups = n_vars - ignore_counter + 1;
-    minterm_group *groups = malloc(sizeof(minterm)*(n_ones_groups));
+    minterm_group *groups = malloc(sizeof(minterm_group)*(n_ones_groups));
     for (int i = 0; i < n_ones_groups; i++){
         groups[i].n_ones = tab_minterms[i][0];
         groups[i].n_elems = tab_minterms[i][1];
-        groups[i].m = malloc(sizeof(minterm)*tab_minterms[i][1]);
+        groups[i].m = malloc(sizeof(minterm)*groups[i].n_elems);
         printf("#1s = %d    #grupos: %d\n", tab_minterms[i][0], tab_minterms[i][1]);
     }
 
@@ -136,50 +151,41 @@ minterm_group *classify_groups(minterm *minterms){
     return groups;
 }
 
-// Makes the first comparison between minterms
-void step_one(cmp_minterms *cmp_m, minterm_group *groups){
-    int diff_counter, diff_pos, n_minterm, subindex, index = 0;
-    for (int i = 0; i < n_ones_groups-1; i++){
-        subindex = 0;
-        for (int j = 0; j < groups[i].n_elems; j++){
-            for (int k = 0; k < groups[i+1].n_elems; k++){
-                diff_counter = 0;
-                for (int l = 0; l < n_vars; l++){
-                    if (groups[i].m[j].v_bit[l] != groups[i+1].m[k].v_bit[l]){
-                        diff_counter++;
-                        diff_pos = l;
+// Compare adjacent groups looking for binaries with just one bit of difference
+void compare_groups(minterm_group **groups){
+    int i, j, k, l, m, n, diff_counter, diff_pos, n_minterm, gi = 0, mi;
+    for (i = 0; i < n_steps; i++){ //percorre todos as colunas/passo
+        for (j = 0; j < n_ones_groups-1; j++){ //percorre todos os grupos de um passo
+            mi = 0;
+            for (k = 0; k < groups[i][j].n_elems; k++){ // percorre todos os mintermos de um grupo
+                for (l = 0; l < groups[i][j+1].n_elems; l++){ //percorre todos os mintermos do outro grupo
+                    diff_counter = 0;
+                    for (m = 0; m < n_vars; m++){ // percorre os bits dos mintermos
+                        if (groups[i][j].m[k].v_bit[m] != groups[i][j+1].m[l].v_bit[m]){
+                            diff_counter++;
+                            diff_pos = m;
+                        }
                     }
-                }
-                if (diff_counter == 1 && index <= n_ones_groups-1){
-                    cmp_m[index].grouped_m[0] = groups[i].m[j].v_int;
-                    cmp_m[index].grouped_m[1] = groups[i+1].m[k].v_int;
-                    n_minterm = groups[i].n_elems*groups[i+1].n_elems;
-                    cmp_m[index].g_minterms = malloc(sizeof(grp_minterm)*n_minterm);
-                    for (int m = 0; m < n_minterm; m++){
-                        cmp_m[index].g_minterms[m].m = malloc(sizeof(char)*n_vars);
+                    if (diff_counter == 1){
+                        //escrever os inteiros
+                        printf("%dx%d | %sx%s\n", groups[i][j].n_ones, groups[i][j+1].n_ones, groups[i][j].m[k].v_bit, groups[i][j+1].m[l].v_bit);
+                        groups[i][j].m[k].checked = 'v';
+                        groups[i][j+1].m[l].checked = 'v';
+                        n_minterm = groups[i][j].n_elems*groups[i][j+1].n_elems;
+                        groups[i+1][gi].m = malloc(sizeof(minterm)*n_minterm);
+                        groups[i+1][gi].m[mi].v_bit = malloc(sizeof(char)*n_vars);
+                        groups[i+1][gi].m[mi].diff_pos = diff_pos;
+                        strcpy(groups[i+1][gi].m[mi].v_bit, groups[i][j].m[k].v_bit);
+                        groups[i+1][gi].m[mi].v_bit[diff_pos] = '-';
+                        printf("um: %s\n",groups[i+1][gi].m[mi].v_bit);
+                        mi++;
                     }
-                    cmp_m[index].g_minterms[subindex].pos = diff_pos;
-                    strcpy(cmp_m[index].g_minterms[subindex].m, groups[i].m[j].v_bit);
-                    cmp_m[index].g_minterms[subindex].m[diff_pos] = '-';
-                    printf("#1s: %d e %d | grupos: %d e %d | #combinacoes: %d | i: %d j: %d | bit: %s\n", groups[i].n_ones, groups[i+1].n_ones, cmp_m[index].grouped_m[0], cmp_m[index].grouped_m[1], n_minterm, index, subindex, cmp_m[index].g_minterms[subindex].m);
-                    subindex++;
-                    groups[i].m[j].checked = 'v';
-                    groups[i+1].m[k].checked = 'v';
                 }
             }
+            groups[i+1][gi].n_elems = mi;
+            printf("index: %d - #elem: %d\n\n", gi, groups[i+1][gi].n_elems);
+            gi++;
         }
-        cmp_m[index].n_elems = subindex;
-        printf("index: %d - #elem: %d\n\n", index, cmp_m[index].n_elems);
-        index++;
+        n_ones_groups--;
     }
-}
-
-// Compare adjacent groups looking for binaries with just one bit of difference
-void compare_groups(minterm_group *groups){
-    cmp_minterms *cmp_m = malloc(sizeof(cmp_minterms)*n_ones_groups-1);
-    for (int i = 0; i < n_ones_groups; i++){
-        cmp_m[i].grouped_m = malloc(sizeof(int)*NMINTERM);
-    }
-    step_one(cmp_m, groups);
-    // step_two();
 }
