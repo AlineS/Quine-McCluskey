@@ -293,45 +293,63 @@ int check_pi(int *count_pi, int n_pi){
     return 0;
 }
 
+int *count_elements(minterm_group pi){
+    int *aux = malloc(sizeof(int)*pi.n_elems);
+    for (int i = 0; i < pi.n_elems; i++){
+        aux[i] = 0;
+        for (int j = 0; j < pi.m[i].ones; j++){
+            if (pi.m[i].v_int[j] != -1){
+                aux[i]++;
+                // printf("elementos: %d | valor: %d\n", aux[i], pi.m[i].v_int[j]);
+            }
+        }
+    }
+    return aux;
+}
+
 void last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
     int greater, g_index;
+    int *num_elems = malloc(sizeof(int)*pi.n_elems);
     // while (check_pi(count_pi, n_pi)) {
-    for (int g = 0; g < 2; g++){
-        for (int i = 0; i < n_pi; i++){
-            greater = 0;
-            for (int j = 0; j < pi.n_elems; j++){
-                if (greater < pi.m[j].ones){
-                    greater = pi.m[j].ones;
-                    g_index = j;
-                }
-            }
-            e_pi[epi_index] = pi.m[g_index].v_bit;
-            epi_index++;
-            pi.m[g_index].checked = 'v';
-            for (int k = 0; k < greater; k++){
-                for (int l = 0; l < n_pi; l++){
-                    if (pi.m[g_index].v_int[k] == l){
-                        printf("imp_index: %d | valor: %d\n", g_index, pi.m[g_index].v_int[k]);
-                        count_pi[l] = 0;
-                    }
-                }
-            }
-        }
-        int aux[pi.n_elems];
+    num_elems = count_elements(pi);
+    for (int g = 0; g < 3; g++){
         for (int i = 0; i < pi.n_elems; i++){
-            aux[i] = pi.m[i].ones;
-            printf("i: %d | #elem: %d\n", i, aux[i]);
             for (int j = 0; j < pi.m[i].ones; j++){
-                printf(" v_int: %d\n", pi.m[i].v_int[j]);
+                    printf("elementos: %d | valor: %d\n", num_elems[i], pi.m[i].v_int[j]);
             }
         }
-        printf("\n");
+        greater = 0;
+        for (int i = 0; i < pi.n_elems; i++){
+            if (greater < num_elems[i] && num_elems[i] != -1){
+                greater = num_elems[i];
+                g_index = i;
+                printf("greater: %d | index: %d\n", greater, g_index);
+            }
+        }
+        e_pi[epi_index] = pi.m[g_index].v_bit;
+        epi_index++;
+        pi.m[g_index].checked = 'v';
+        for (int i = 0; i < n_pi; i++){
+            for (int j = 0; j < greater; j++){
+                if (pi.m[g_index].v_int[j] == i){
+                    count_pi[i] = 0;
+                }
+            }
+        }
+        int aux_int;
         for (int i = 0; i < greater; i++){
+            if (pi.m[g_index].v_int[i] != -1){
+                aux_int = pi.m[g_index].v_int[i];
+                printf("aux_int = %d\n", aux_int);
+            } else {
+                continue;
+            }
             for (int j = 0; j < pi.n_elems; j++){
                 for (int k = 0; k < pi.m[j].ones; k++){
-                    if (pi.m[j].v_int[k] == pi.m[g_index].v_int[i]){
+                    if (pi.m[j].v_int[k] == aux_int && pi.m[j].v_int[k] != -1){
                         printf("removed: %d | greater: %d\n", pi.m[j].v_int[k], greater);
                         pi.m[j].v_int[k] = -1;
+                        num_elems[j]--;
                     }
                 }
             }
