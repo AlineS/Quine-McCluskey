@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define NMINTERM 2
 
@@ -34,7 +35,6 @@ minterm *read_minterms(int argc, char const *argv[]){
     int aux;
     n_vars = strtoul(argv[1], NULL, 10);
     n_mint = argc - 2;
-    printf("n_vars = %d     n_mint = %d\n", n_vars, n_mint);
     minterm *minterms = malloc(sizeof(minterm)*n_mint);
     for (int i = 0; i < n_mint; i++){
         minterms[i].v_int = malloc(sizeof(int));
@@ -52,7 +52,6 @@ minterm *read_minterms(int argc, char const *argv[]){
         }
         minterms[i-2].v_int[0] = aux;
         minterms[i-2].ones = 0;
-        printf("m[%d] = %d\n", i-2, minterms[i-2].v_int[0]);
     }
     return minterms;
 }
@@ -99,11 +98,9 @@ minterm_group *classify_groups(minterm *minterms){
         } else{
             tab_minterms[index][0] = i;
             tab_minterms[index][1] = counter;
-            printf("%d: #1s: %d     #grupos: %d\n", index, tab_minterms[index][0], tab_minterms[index][1]);
         }
         index++;
     }
-    printf("------ignore_counter = %d\n", ignore_counter);
 
     // Allocates memory to group the minterms
     n_ones_groups = n_vars - ignore_counter + 1;
@@ -112,7 +109,6 @@ minterm_group *classify_groups(minterm *minterms){
         groups[i].n_ones = tab_minterms[i][0];
         groups[i].n_elems = tab_minterms[i][1];
         groups[i].m = malloc(sizeof(minterm)*groups[i].n_elems);
-        printf("#1s = %d    #grupos: %d\n", tab_minterms[i][0], tab_minterms[i][1]);
     }
 
     // Store minterms in each correspondent group
@@ -128,6 +124,7 @@ minterm_group *classify_groups(minterm *minterms){
     return groups;
 }
 
+// Copy values from a minor vector to a greater vector
 void copy_half_int(int *a, int *b, int beg, int end){
     int i = 0;
     while (beg < end){
@@ -136,9 +133,22 @@ void copy_half_int(int *a, int *b, int beg, int end){
     }
 }
 
+// Calculates the number of integers a minterm have
+int count_dontcare(char *s, int len){
+    int counter = 0;
+    for (int i = 0; i < len; i++){
+        if (s[i] == '-'){
+            counter++;
+        }
+    }
+    return pow(2, counter);
+}
+
 // Compare adjacent groups looking for binaries with just one bit of difference
-void compare_groups(minterm_group **groups){
-    int i, j, k, l, m, n, diff_counter, diff_pos, n_minterm, g_index, m_index, mult = 2, eq_counter, iter = n_vars;
+minterm_group compare_groups(minterm_group **groups){
+    int i, j, k, l, m, n, diff_counter, diff_pos, n_minterm, g_index, m_index, mult = 2, eq_counter, pi_index = 0;
+    minterm_group pi;
+    pi.m = malloc(sizeof(minterm)*n_mint);
     char *aux_bit = malloc(sizeof(char)*n_vars);
     for (i = 0; i < n_vars-1; i++){ //columns/steps
         g_index = 0;
@@ -189,15 +199,185 @@ void compare_groups(minterm_group **groups){
                 g_index++;
             }
         }
-        // Not combined minterms
-        for (j = 0; j < n_ones_groups-1; j++){
+        // Store prime implicants
+        for (j = 0; j < n_ones_groups; j++){
             for (k = 0; k < groups[i][j].n_elems; k++){
-                if (groups[i][j].m[k].checked != 'v'){
-                    printf("not combined: %s\n", groups[i][j].m[k].v_bit);
+                if (groups[i][j].m[k].checked != 'v' && pi_index < n_mint){
+                    pi.m[pi_index].v_bit = malloc(sizeof(char)*n_vars);
+                    strcpy(pi.m[pi_index].v_bit, groups[i][j].m[k].v_bit);
+                    pi.m[pi_index].ones = count_dontcare(groups[i][j].m[k].v_bit, n_vars);
+                    pi.m[pi_index].v_int = malloc(sizeof(int)*pi.m[pi_index].ones);
+                    pi.m[pi_index++].v_int = groups[i][j].m[k].v_int;
+                    pi.n_elems = pi_index;
                 }
             }
         }
         n_ones_groups--;
         mult *= 2;
     }
+    return pi;
+}
+
+// Calculates the number that each value appears
+void implicants_table(int *count_pi, minterm_group prime_implicants, int n_pi){
+    for (int i = 0; i < n_pi; i++){
+        count_pi[i] = 0;
+        for (int j = 0; j < prime_implicants.n_elems; j++){
+            for (int k = 0; k < prime_implicants.m[j].ones; k++){
+                if (prime_implicants.m[j].v_int[k] == i){
+                    count_pi[i]++;
+                }
+            }
+        }
+    }
+}
+
+// Identifies the prime implicants
+char *find_pi(minterm_group pi, int var){
+    for (int i = 0; i < pi.n_elems; i++){
+        for (int j = 0; j < pi.m[i].ones; j++){
+            if (pi.m[i].v_int[j] == var){
+                if (pi.m[i].checked == 'v'){
+                    return "none";
+                }
+                return pi.m[i].v_bit;
+            }
+        }
+    }
+}
+
+// Updates the prime implicant table, removing the essencial prime implicants
+void override_epis(int *count_pi, minterm_group pi, int n_pi){
+    int *aux_override = malloc(sizeof(int)*n_mint);
+    int o_index = 0, repeated = 0;
+    for (int i = 0; i < n_pi; i++){
+        if (count_pi[i] == 1){ // counter vector
+            printf("intizinho: %d\n", i);
+            for (int j = 0; j < pi.n_elems; j++){ // implicants
+                for (int k = 0; k < pi.m[j].ones; k++){ // integer implicants
+                    if (pi.m[j].v_int[k] == i){
+                        for (int l = 0; l < pi.m[j].ones; l++){ // integer implicants
+                            for (int m = 0; m < o_index; m++){
+                                if (pi.m[j].v_int[l] == aux_override[m] || count_pi[pi.m[j].v_int[l]] <= 0){
+                                    repeated = 1;
+                                }
+                            }
+                            if (repeated == 0){
+                                aux_override[o_index++] = pi.m[j].v_int[l];
+                            }
+                            repeated = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (int i = 0; i < o_index; i++){
+        count_pi[aux_override[i]] = 0;
+        for (int j = 0; j < pi.n_elems; j++){
+            for (int k = 0; k < pi.m[j].ones; k++){
+                if (aux_override[i] == pi.m[j].v_int[k]){
+                    pi.m[j].v_int[k] = -1;
+                }
+            }
+        }
+    }
+}
+
+int check_pi(int *count_pi, int n_pi){
+    for (int i = 0; i < n_pi; i++){
+        if (count_pi[i] > 0){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
+    int greater, g_index;
+    // while (check_pi(count_pi, n_pi)) {
+    for (int g = 0; g < 2; g++){
+        for (int i = 0; i < n_pi; i++){
+            greater = 0;
+            for (int j = 0; j < pi.n_elems; j++){
+                if (greater < pi.m[j].ones){
+                    greater = pi.m[j].ones;
+                    g_index = j;
+                }
+            }
+            e_pi[epi_index] = pi.m[g_index].v_bit;
+            epi_index++;
+            pi.m[g_index].checked = 'v';
+            for (int k = 0; k < greater; k++){
+                for (int l = 0; l < n_pi; l++){
+                    if (pi.m[g_index].v_int[k] == l){
+                        printf("imp_index: %d | valor: %d\n", g_index, pi.m[g_index].v_int[k]);
+                        count_pi[l] = 0;
+                    }
+                }
+            }
+        }
+        int aux[pi.n_elems];
+        for (int i = 0; i < pi.n_elems; i++){
+            aux[i] = pi.m[i].ones;
+            printf("i: %d | #elem: %d\n", i, aux[i]);
+            for (int j = 0; j < pi.m[i].ones; j++){
+                printf(" v_int: %d\n", pi.m[i].v_int[j]);
+            }
+        }
+        printf("\n");
+        for (int i = 0; i < greater; i++){
+            for (int j = 0; j < pi.n_elems; j++){
+                for (int k = 0; k < pi.m[j].ones; k++){
+                    if (pi.m[j].v_int[k] == pi.m[g_index].v_int[i]){
+                        printf("removed: %d | greater: %d\n", pi.m[j].v_int[k], greater);
+                        pi.m[j].v_int[k] = -1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Identifies essencial prime implicants from prime implicants list
+int essencials_pi(int *count_pi, minterm_group prime_implicants, int n_pi, char **essencial_pi){
+    int epi_index = 0;
+    char *epi_aux = malloc(sizeof(char)*n_vars);
+    // while (check_pi(count_pi, n_pi)){
+    for(int j = 0; j < 2; j++){
+        for (int i = 0; i < n_pi; i++){
+            if (count_pi[i] == 1){
+                epi_aux = find_pi(prime_implicants, i);
+                if (strcmp(epi_aux, "none") != 0){
+                    strcpy(essencial_pi[epi_index], epi_aux);
+                    prime_implicants.m[i].checked = 'v';
+                    epi_index++;
+                }
+            }
+        }
+        override_epis(count_pi, prime_implicants, n_pi);
+    }
+    last_epis(count_pi, prime_implicants, n_pi, essencial_pi, epi_index);
+    for (int j = 0; j < n_pi; j++){
+        printf("result1: %d %d\n", j, count_pi[j]);
+    }
+
+    return epi_index;
+}
+
+// Prints the equation result
+void minimization(char **essencial_pi, int epi_index){
+    for (int i = 0; i < epi_index; i++){
+        for (int j = 0; j < n_vars; j++){
+            if (essencial_pi[i][j] != '-'){
+                printf("%c", (char)(j + 65));
+            }
+            if (essencial_pi[i][j] == '0'){
+                printf("%s", "'");
+            }
+        }
+        if (i+1 != epi_index)
+            printf("%s", " + ");
+    }
+    printf("\n");
 }
