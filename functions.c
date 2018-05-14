@@ -307,8 +307,16 @@ int *count_elements(minterm_group pi){
     return aux;
 }
 
-void last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
-    int greater, g_index;
+void remove_repeated(int *count_pi, minterm_group pi, int n_pi){
+    for (int i = 0; i < n_pi; i++){
+        for (int j = i; j < n_pi; j++){
+
+        }
+    }
+}
+
+int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
+    int greater, g_index, epi_counter = 0;
     int *num_elems = malloc(sizeof(int)*pi.n_elems);
     // while (check_pi(count_pi, n_pi)) {
     num_elems = count_elements(pi);
@@ -328,6 +336,7 @@ void last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_
         }
         e_pi[epi_index] = pi.m[g_index].v_bit;
         epi_index++;
+        epi_counter++;
         pi.m[g_index].checked = 'v';
         for (int i = 0; i < n_pi; i++){
             for (int j = 0; j < greater; j++){
@@ -337,24 +346,25 @@ void last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_
             }
         }
         int aux_int;
-        for (int i = 0; i < greater; i++){
+        for (int i = 0; i < pi.m[greater].ones; i++){
+            remove_repeated(count_pi, pi, n_pi);
+            printf("VALORR: %d\n", pi.m[g_index].v_int[i]);
             if (pi.m[g_index].v_int[i] != -1){
                 aux_int = pi.m[g_index].v_int[i];
                 printf("aux_int = %d\n", aux_int);
-            } else {
-                continue;
-            }
-            for (int j = 0; j < pi.n_elems; j++){
-                for (int k = 0; k < pi.m[j].ones; k++){
-                    if (pi.m[j].v_int[k] == aux_int && pi.m[j].v_int[k] != -1){
-                        printf("removed: %d | greater: %d\n", pi.m[j].v_int[k], greater);
-                        pi.m[j].v_int[k] = -1;
-                        num_elems[j]--;
+                for (int j = 0; j < pi.n_elems; j++){
+                    for (int k = 0; k < pi.m[j].ones; k++){
+                        if (pi.m[j].v_int[k] == aux_int && pi.m[j].v_int[k] != -1){
+                            printf("removed: %d | greater: %d\n", pi.m[j].v_int[k], greater);
+                            pi.m[j].v_int[k] = -1;
+                            num_elems[j]--;
+                        }
                     }
                 }
             }
         }
     }
+    return epi_counter;
 }
 
 // Identifies essencial prime implicants from prime implicants list
@@ -375,11 +385,10 @@ int essencials_pi(int *count_pi, minterm_group prime_implicants, int n_pi, char 
         }
         override_epis(count_pi, prime_implicants, n_pi);
     }
-    last_epis(count_pi, prime_implicants, n_pi, essencial_pi, epi_index);
+    epi_index += last_epis(count_pi, prime_implicants, n_pi, essencial_pi, epi_index);
     for (int j = 0; j < n_pi; j++){
-        printf("result1: %d %d\n", j, count_pi[j]);
+        printf("result1: %d %d | #minterms: %d\n", j, count_pi[j], epi_index);
     }
-
     return epi_index;
 }
 
