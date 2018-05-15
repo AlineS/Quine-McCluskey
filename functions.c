@@ -32,7 +32,7 @@ minterm *read_minterms(int argc, char const *argv[]){
         exit(1);
     }
     // Otherwise get the arguments and put it in an array
-    int aux;
+    int aux, new_aux, counter = 0;
     n_vars = strtoul(argv[1], NULL, 10);
     n_mint = argc - 2;
     minterm *minterms = malloc(sizeof(minterm)*n_mint);
@@ -50,6 +50,14 @@ minterm *read_minterms(int argc, char const *argv[]){
                 }
             }
         }
+        if (i > 3 && aux == new_aux+1){
+            counter++;
+        }
+        if (counter+2 == pow(2, n_vars)){
+            printf("All minterms are true. The result is 1\n\n");
+            exit(1);
+        }
+        new_aux = aux;
         minterms[i-2].v_int[0] = aux;
         minterms[i-2].ones = 0;
     }
@@ -150,7 +158,8 @@ minterm_group compare_groups(minterm_group **groups){
     minterm_group pi;
     pi.m = malloc(sizeof(minterm)*n_mint);
     char *aux_bit = malloc(sizeof(char)*n_vars);
-    for (i = 0; i < n_vars-1; i++){ //columns/steps
+    for (i = 0; i < n_vars; i++){ //columns/steps
+        if (i < n_vars-1){
         g_index = 0;
         for (j = 0; j < n_ones_groups-1; j++){ //groups in a column/step
             m_index = 0;
@@ -167,31 +176,30 @@ minterm_group compare_groups(minterm_group **groups){
                                     diff_pos = m;
                                 }
                             }
-                        } else {
-                            continue;
-                        }
-                        if (diff_counter == 1){
-                            strcpy(aux_bit, groups[i][j].m[k].v_bit);
-                            aux_bit[diff_pos] = '-';
-                            eq_counter = 0;
-                            // Guarantee that repeated minterms will not be stored
-                            for (n = 0; n < m_index; n++){
-                                if (strcmp(aux_bit, groups[i+1][g_index].m[n].v_bit) == 0){
-                                    eq_counter++;
+                            if (diff_counter == 1){
+                                strcpy(aux_bit, groups[i][j].m[k].v_bit);
+                                aux_bit[diff_pos] = '-';
+                                eq_counter = 0;
+
+                                // Guarantee that repeated minterms will not be stored
+                                for (n = 0; n < m_index; n++){
+                                    if (strcmp(aux_bit, groups[i+1][g_index].m[n].v_bit) == 0){
+                                        eq_counter++;
+                                    }
                                 }
+                                if (eq_counter == 0){
+                                    groups[i+1][g_index].m[m_index].v_bit = malloc(sizeof(char)*n_vars);
+                                    groups[i+1][g_index].m[m_index].v_int = malloc(sizeof(int)*mult);
+                                    copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j].m[k].v_int, 0, mult/2);
+                                    copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j+1].m[l].v_int, mult/2, mult);
+                                    strcpy(groups[i+1][g_index].m[m_index].v_bit, aux_bit);
+                                    groups[i+1][g_index].m[m_index].diff_pos = diff_pos;
+                                    printf("%dx%d | %sx%s | %dx%d | res: %s\n", groups[i][j].n_ones, groups[i][j+1].n_ones, groups[i][j].m[k].v_bit, groups[i][j+1].m[l].v_bit, groups[i+1][g_index].m[m_index].v_int[0], groups[i+1][g_index].m[m_index].v_int[1], groups[i+1][g_index].m[m_index].v_bit);
+                                    m_index++;
+                                }
+                                groups[i][j].m[k].checked = 'v';
+                                groups[i][j+1].m[l].checked = 'v';
                             }
-                            if (eq_counter == 0){
-                                groups[i+1][g_index].m[m_index].v_bit = malloc(sizeof(char)*n_vars);
-                                groups[i+1][g_index].m[m_index].v_int = malloc(sizeof(int)*mult);
-                                copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j].m[k].v_int, 0, mult/2);
-                                copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j+1].m[l].v_int, mult/2, mult);
-                                strcpy(groups[i+1][g_index].m[m_index].v_bit, aux_bit);
-                                groups[i+1][g_index].m[m_index].diff_pos = diff_pos;
-                                printf("%dx%d | %sx%s | %dx%d | res: %s\n", groups[i][j].n_ones, groups[i][j+1].n_ones, groups[i][j].m[k].v_bit, groups[i][j+1].m[l].v_bit, groups[i+1][g_index].m[m_index].v_int[0], groups[i+1][g_index].m[m_index].v_int[1], groups[i+1][g_index].m[m_index].v_bit);
-                                m_index++;
-                            }
-                            groups[i][j].m[k].checked = 'v';
-                            groups[i][j+1].m[l].checked = 'v';
                         }
                     }
                 }
@@ -199,6 +207,8 @@ minterm_group compare_groups(minterm_group **groups){
                 g_index++;
             }
         }
+    }
+
         // Store prime implicants
         for (j = 0; j < n_ones_groups; j++){
             for (k = 0; k < groups[i][j].n_elems; k++){
@@ -207,14 +217,17 @@ minterm_group compare_groups(minterm_group **groups){
                     strcpy(pi.m[pi_index].v_bit, groups[i][j].m[k].v_bit);
                     pi.m[pi_index].ones = count_dontcare(groups[i][j].m[k].v_bit, n_vars);
                     pi.m[pi_index].v_int = malloc(sizeof(int)*pi.m[pi_index].ones);
+                    printf("MINTERM: %s | position: %d | checked: %d\n", pi.m[pi_index].v_bit, groups[i][j].m[k].diff_pos, pi.m[pi_index].checked);
                     pi.m[pi_index++].v_int = groups[i][j].m[k].v_int;
                     pi.n_elems = pi_index;
                 }
             }
         }
         n_ones_groups--;
+        printf("n_ones_groups: %d\n", n_ones_groups);
         mult *= 2;
     }
+    // printf("CHAR: %s\n\n", groups[i][0].m[0].v_bit);
     return pi;
 }
 
@@ -233,13 +246,18 @@ void implicants_table(int *count_pi, minterm_group prime_implicants, int n_pi){
 }
 
 // Identifies the prime implicants
-char *find_pi(minterm_group pi, int var){
+char *find_pi(minterm_group pi, int var, int *pi_index){
+    for (int i = 0; i < pi.n_elems; i++){
+        printf("checked: %d\n", pi.m[i].checked);
+    }
     for (int i = 0; i < pi.n_elems; i++){
         for (int j = 0; j < pi.m[i].ones; j++){
             if (pi.m[i].v_int[j] == var){
+                printf("var: %d | checked: %d\n", var, pi.m[i].checked);
                 if (pi.m[i].checked == 'v'){
                     return "none";
                 }
+                *pi_index = i;
                 return pi.m[i].v_bit;
             }
         }
@@ -284,9 +302,18 @@ void override_epis(int *count_pi, minterm_group pi, int n_pi){
     }
 }
 
-int check_pi(int *count_pi, int n_pi){
+int check_pi_zero(int *count_pi, int n_pi){
     for (int i = 0; i < n_pi; i++){
         if (count_pi[i] > 0){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int check_pi_one(int *count_pi, int n_pi){
+    for (int i = 0; i < n_pi; i++){
+        if (count_pi[i] == 1){
             return 1;
         }
     }
@@ -308,33 +335,35 @@ int *count_elements(minterm_group pi){
 }
 
 void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
-    int check_counter, var_counter, aux_index = 0;
+    int check_counter, aux_index, entry_flag = 0;
     int *aux_remove = malloc(sizeof(int)*pi.n_elems);
     for (int i = 0; i < pi.n_elems; i++){
         for (int ii = i+1; ii < pi.n_elems; ii++){
             check_counter = 0;
-            var_counter = 0;
+            aux_index = 0;
             for (int j = 0; j < pi.m[i].ones; j++){
-                if(pi.m[i].v_int[j] != -1){
-                    var_counter++;
-                    for (int jj = 0; jj < pi.m[ii].ones; jj++){
-                        printf("v1: %d | v2: %d\n", pi.m[i].v_int[j], pi.m[ii].v_int[jj]);
-                        if (pi.m[ii].v_int[jj] != -1 &&  pi.m[i].v_int[j] == pi.m[ii].v_int[jj]){
-                            check_counter++;
+                entry_flag = 0;
+                for (int jj = 0; jj < pi.m[ii].ones; jj++){
+                    // printf("v1: %d | v2: %d\n", pi.m[i].v_int[j], pi.m[ii].v_int[jj]);
+                    if (pi.m[i].v_int[j] == pi.m[ii].v_int[jj]){
+                        check_counter++;
+                        if (pi.m[i].v_int[j] != -1){
                             aux_remove[aux_index] = pi.m[ii].v_int[jj];
-                            printf("REMOVED: %d | check_counter: %d | num_elems: %d\n", aux_remove[aux_index], check_counter, num_elems[i]);
+                            // printf("aux_remove: %d | check_counter: %d | num_elems: %d\n", aux_remove[aux_index], check_counter, num_elems[ii]);
                             aux_index++;
                         }
                     }
-                }
-            }
-            if (pi.m[i].ones > 0 && check_counter > 0 & pi.m[i].ones == check_counter){
-                printf("check_counter: %d | num_elems: %d\n", check_counter, num_elems[i]);
-                for (int k = 0; k < aux_index; k++){
-                    for (int l = 0; l < n_pi; l++){
-                        if (l == aux_remove[k]){
-                            count_pi[l] = 0;
-                            num_elems[ii]--;
+                    if (check_counter > 0 & pi.m[i].ones == check_counter && entry_flag != 1){
+                        for (int k = 0; k < aux_index; k++){
+                            for (int l = 0; l < n_pi; l++){
+                                if (l == aux_remove[k]){
+                                    entry_flag = 1;
+                                    printf("    check_counter: %d | num_elems: %d\n", check_counter, pi.m[i].ones);
+                                    count_pi[l]--;
+                                    num_elems[ii]--;
+                                    pi.m[ii].v_int[jj] = -1;
+                                }
+                            }
                         }
                     }
                 }
@@ -347,11 +376,11 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
     int greater, g_index, epi_counter = 0;
     int *num_elems = malloc(sizeof(int)*pi.n_elems);
     num_elems = count_elements(pi);
-    // while (check_pi(count_pi, n_pi)) {
-    for (int g = 0; g < 3; g++){
+    while (check_pi_zero(count_pi, n_pi)) {
+    // for (int g = 0; g < 4; g++){
         for (int i = 0; i < pi.n_elems; i++){
             for (int j = 0; j < pi.m[i].ones; j++){
-                    printf("elementos: %d | valor: %d\n", num_elems[i], pi.m[i].v_int[j]);
+                printf("elementos: %d | valor: %d\n", num_elems[i], pi.m[i].v_int[j]);
             }
         }
         greater = 0;
@@ -367,7 +396,7 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
         epi_counter++;
         pi.m[g_index].checked = 'v';
         for (int i = 0; i < n_pi; i++){
-            for (int j = 0; j < greater; j++){
+            for (int j = 0; j <= greater; j++){
                 if (pi.m[g_index].v_int[j] == i){
                     count_pi[i] = 0;
                 }
@@ -375,11 +404,10 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
         }
         int aux_int;
         for (int i = 0; i < pi.m[greater].ones; i++){
-            remove_repeated(count_pi, pi, n_pi, num_elems);
-            printf("VALORR: %d\n", pi.m[g_index].v_int[i]);
+            // printf("VALORR: %d\n", pi.m[g_index].v_int[i]);
             if (pi.m[g_index].v_int[i] != -1){
                 aux_int = pi.m[g_index].v_int[i];
-                printf("aux_int = %d\n", aux_int);
+                // printf("aux_int = %d\n", aux_int);
                 for (int j = 0; j < pi.n_elems; j++){
                     for (int k = 0; k < pi.m[j].ones; k++){
                         if (pi.m[j].v_int[k] == aux_int && pi.m[j].v_int[k] != -1){
@@ -391,32 +419,49 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
                 }
             }
         }
+        for (int j = 0; j < n_pi; j++){
+            printf("result2: %d %d\n", j, count_pi[j]);
+        }
+        printf("\n");
+        remove_repeated(count_pi, pi, n_pi, num_elems);
+        for (int j = 0; j < n_pi; j++){
+            printf("result3: %d %d\n", j, count_pi[j]);
+        }
+        printf("\n");
     }
+
     return epi_counter;
 }
 
 // Identifies essencial prime implicants from prime implicants list
 int essencials_pi(int *count_pi, minterm_group prime_implicants, int n_pi, char **essencial_pi){
-    int epi_index = 0;
+    int epi_index = 0, pi_index;
     char *epi_aux = malloc(sizeof(char)*n_vars);
-    // while (check_pi(count_pi, n_pi)){
-    for(int j = 0; j < 2; j++){
+    while (check_pi_one(count_pi, n_pi)){
+    // for(int g = 0; g < 1; g++){
         for (int i = 0; i < n_pi; i++){
             if (count_pi[i] == 1){
-                epi_aux = find_pi(prime_implicants, i);
+                epi_aux = find_pi(prime_implicants, i, &pi_index);
+                printf("implicants: %s | pi_index: %d\n", epi_aux, pi_index);
                 if (strcmp(epi_aux, "none") != 0){
                     strcpy(essencial_pi[epi_index], epi_aux);
-                    prime_implicants.m[i].checked = 'v';
+                    prime_implicants.m[pi_index].checked = 'v';
                     epi_index++;
                 }
             }
         }
+        for (int j = 0; j < n_pi; j++){
+            printf("result0: %d %d\n", j, count_pi[j]);
+        }
+        printf("\n");
         override_epis(count_pi, prime_implicants, n_pi);
+        for (int j = 0; j < n_pi; j++){
+            printf("result1: %d %d\n", j, count_pi[j]);
+        }
+        printf("\n");
     }
     epi_index += last_epis(count_pi, prime_implicants, n_pi, essencial_pi, epi_index);
-    for (int j = 0; j < n_pi; j++){
-        printf("result1: %d %d | #minterms: %d\n", j, count_pi[j], epi_index);
-    }
+    printf("\n");
     return epi_index;
 }
 

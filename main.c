@@ -20,7 +20,7 @@ int main(int argc, char const *argv[]) {
     // Separates minterms in groups depend on the number of ones
     groups = malloc(sizeof(minterm_group*)*n_vars-1);
     groups[index++] = classify_groups(minterms);
-
+    // printf("n_ones_groups = %d\n", n_ones_groups);
     // for (i = 0; i < n_ones_groups; i++){
     //     for (j = 0; j < groups[0][i].n_elems; j++){
     //         printf("group:%d | bit: %s | int: %d\n", groups[0][i].n_ones, groups[0][i].m[j].v_bit, groups[0][i].m[j].v_int[0]);
@@ -45,6 +45,10 @@ int main(int argc, char const *argv[]) {
     n_pi = pow(2, n_vars);
     count_pi = malloc(sizeof(int)*n_pi);
     implicants_table(count_pi, prime_implicants, n_pi);
+
+    for (int i = 0; i < n_pi; i++){
+        printf("o nº %d aparece %d vezes\n", i, count_pi[i]);
+    }
 
     // Selects all the essencial prime implicants
     essencial_pi = malloc(sizeof(char*)*n_pi);
