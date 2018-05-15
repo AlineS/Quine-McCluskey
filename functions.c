@@ -307,10 +307,38 @@ int *count_elements(minterm_group pi){
     return aux;
 }
 
-void remove_repeated(int *count_pi, minterm_group pi, int n_pi){
-    for (int i = 0; i < n_pi; i++){
-        for (int j = i; j < n_pi; j++){
-
+void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
+    int check_counter, var_counter, aux_index = 0;
+    int *aux_remove = malloc(sizeof(int)*pi.n_elems);
+    for (int i = 0; i < pi.n_elems; i++){
+        for (int ii = i+1; ii < pi.n_elems; ii++){
+            check_counter = 0;
+            var_counter = 0;
+            for (int j = 0; j < pi.m[i].ones; j++){
+                if(pi.m[i].v_int[j] != -1){
+                    var_counter++;
+                    for (int jj = 0; jj < pi.m[ii].ones; jj++){
+                        printf("v1: %d | v2: %d\n", pi.m[i].v_int[j], pi.m[ii].v_int[jj]);
+                        if (pi.m[ii].v_int[jj] != -1 &&  pi.m[i].v_int[j] == pi.m[ii].v_int[jj]){
+                            check_counter++;
+                            aux_remove[aux_index] = pi.m[ii].v_int[jj];
+                            printf("REMOVED: %d | check_counter: %d | num_elems: %d\n", aux_remove[aux_index], check_counter, num_elems[i]);
+                            aux_index++;
+                        }
+                    }
+                }
+            }
+            if (pi.m[i].ones > 0 && check_counter > 0 & pi.m[i].ones == check_counter){
+                printf("check_counter: %d | num_elems: %d\n", check_counter, num_elems[i]);
+                for (int k = 0; k < aux_index; k++){
+                    for (int l = 0; l < n_pi; l++){
+                        if (l == aux_remove[k]){
+                            count_pi[l] = 0;
+                            num_elems[ii]--;
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -318,8 +346,8 @@ void remove_repeated(int *count_pi, minterm_group pi, int n_pi){
 int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
     int greater, g_index, epi_counter = 0;
     int *num_elems = malloc(sizeof(int)*pi.n_elems);
-    // while (check_pi(count_pi, n_pi)) {
     num_elems = count_elements(pi);
+    // while (check_pi(count_pi, n_pi)) {
     for (int g = 0; g < 3; g++){
         for (int i = 0; i < pi.n_elems; i++){
             for (int j = 0; j < pi.m[i].ones; j++){
@@ -347,7 +375,7 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
         }
         int aux_int;
         for (int i = 0; i < pi.m[greater].ones; i++){
-            remove_repeated(count_pi, pi, n_pi);
+            remove_repeated(count_pi, pi, n_pi, num_elems);
             printf("VALORR: %d\n", pi.m[g_index].v_int[i]);
             if (pi.m[g_index].v_int[i] != -1){
                 aux_int = pi.m[g_index].v_int[i];
