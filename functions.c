@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
-#define NMINTERM 2
+#include <time.h>
 
 int n_mint;
 int n_vars;
@@ -23,6 +22,14 @@ typedef struct minterm_group{
     int n_elems;
     int n_ones;
 } minterm_group;
+
+struct timespec start;
+struct timespec end;
+
+double time_function(struct timespec* ts)
+{
+    return (double)ts->tv_sec + (double)ts->tv_nsec / 1000000000.0;
+}
 
 // Process the number of minterms e which are the minterms
 minterm *read_minterms(int argc, char const *argv[]){
@@ -160,54 +167,54 @@ minterm_group compare_groups(minterm_group **groups){
     char *aux_bit = malloc(sizeof(char)*n_vars);
     for (i = 0; i < n_vars; i++){ //columns/steps
         if (i < n_vars-1){
-        g_index = 0;
-        for (j = 0; j < n_ones_groups-1; j++){ //groups in a column/step
-            m_index = 0;
-            if (groups[i][j].n_ones+1 == groups[i][j+1].n_ones || i > 0){
-                n_minterm = groups[i][j].n_elems*groups[i][j+1].n_elems;
-                groups[i+1][g_index].m = malloc(sizeof(minterm)*n_minterm);
-                for (k = 0; k < groups[i][j].n_elems; k++){ //mintems in a group
-                    for (l = 0; l < groups[i][j+1].n_elems; l++){ //mintems in another group
-                        diff_counter = 0;
-                        if (i == 0 || groups[i][j].m[k].diff_pos == groups[i][j+1].m[l].diff_pos){
-                            for (m = 0; m < n_vars; m++){ //mintems bits
-                                if (groups[i][j].m[k].v_bit[m] != groups[i][j+1].m[l].v_bit[m]){
-                                    diff_counter++;
-                                    diff_pos = m;
-                                }
-                            }
-                            if (diff_counter == 1){
-                                strcpy(aux_bit, groups[i][j].m[k].v_bit);
-                                aux_bit[diff_pos] = '-';
-                                eq_counter = 0;
-
-                                // Guarantee that repeated minterms will not be stored
-                                for (n = 0; n < m_index; n++){
-                                    if (strcmp(aux_bit, groups[i+1][g_index].m[n].v_bit) == 0){
-                                        eq_counter++;
+            g_index = 0;
+            for (j = 0; j < n_ones_groups-1; j++){ //groups in a column/step
+                m_index = 0;
+                if (groups[i][j].n_ones+1 == groups[i][j+1].n_ones || i > 0){
+                    n_minterm = groups[i][j].n_elems*groups[i][j+1].n_elems;
+                    groups[i+1][g_index].m = malloc(sizeof(minterm)*n_minterm);
+                    for (k = 0; k < groups[i][j].n_elems; k++){ //mintems in a group
+                        for (l = 0; l < groups[i][j+1].n_elems; l++){ //mintems in another group
+                            diff_counter = 0;
+                            if (i == 0 || groups[i][j].m[k].diff_pos == groups[i][j+1].m[l].diff_pos){
+                                for (m = 0; m < n_vars; m++){ //mintems bits
+                                    if (groups[i][j].m[k].v_bit[m] != groups[i][j+1].m[l].v_bit[m]){
+                                        diff_counter++;
+                                        diff_pos = m;
                                     }
                                 }
-                                if (eq_counter == 0){
-                                    groups[i+1][g_index].m[m_index].v_bit = malloc(sizeof(char)*n_vars);
-                                    groups[i+1][g_index].m[m_index].v_int = malloc(sizeof(int)*mult);
-                                    copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j].m[k].v_int, 0, mult/2);
-                                    copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j+1].m[l].v_int, mult/2, mult);
-                                    strcpy(groups[i+1][g_index].m[m_index].v_bit, aux_bit);
-                                    groups[i+1][g_index].m[m_index].diff_pos = diff_pos;
-                                    printf("%dx%d | %sx%s | %dx%d | res: %s\n", groups[i][j].n_ones, groups[i][j+1].n_ones, groups[i][j].m[k].v_bit, groups[i][j+1].m[l].v_bit, groups[i+1][g_index].m[m_index].v_int[0], groups[i+1][g_index].m[m_index].v_int[1], groups[i+1][g_index].m[m_index].v_bit);
-                                    m_index++;
+                                if (diff_counter == 1){
+                                    strcpy(aux_bit, groups[i][j].m[k].v_bit);
+                                    aux_bit[diff_pos] = '-';
+                                    eq_counter = 0;
+
+                                    // Guarantee that repeated minterms will not be stored
+                                    for (n = 0; n < m_index; n++){
+                                        if (strcmp(aux_bit, groups[i+1][g_index].m[n].v_bit) == 0){
+                                            eq_counter++;
+                                        }
+                                    }
+                                    if (eq_counter == 0){
+                                        groups[i+1][g_index].m[m_index].v_bit = malloc(sizeof(char)*n_vars);
+                                        groups[i+1][g_index].m[m_index].v_int = malloc(sizeof(int)*mult);
+                                        copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j].m[k].v_int, 0, mult/2);
+                                        copy_half_int(groups[i+1][g_index].m[m_index].v_int, groups[i][j+1].m[l].v_int, mult/2, mult);
+                                        strcpy(groups[i+1][g_index].m[m_index].v_bit, aux_bit);
+                                        groups[i+1][g_index].m[m_index].diff_pos = diff_pos;
+                                        // printf("%dx%d | %sx%s | %dx%d | res: %s\n", groups[i][j].n_ones, groups[i][j+1].n_ones, groups[i][j].m[k].v_bit, groups[i][j+1].m[l].v_bit, groups[i+1][g_index].m[m_index].v_int[0], groups[i+1][g_index].m[m_index].v_int[1], groups[i+1][g_index].m[m_index].v_bit);
+                                        m_index++;
+                                    }
+                                    groups[i][j].m[k].checked = 'v';
+                                    groups[i][j+1].m[l].checked = 'v';
                                 }
-                                groups[i][j].m[k].checked = 'v';
-                                groups[i][j+1].m[l].checked = 'v';
                             }
                         }
                     }
+                    groups[i+1][g_index].n_elems = m_index;
+                    g_index++;
                 }
-                groups[i+1][g_index].n_elems = m_index;
-                g_index++;
             }
         }
-    }
 
         // Store prime implicants
         for (j = 0; j < n_ones_groups; j++){
@@ -217,17 +224,15 @@ minterm_group compare_groups(minterm_group **groups){
                     strcpy(pi.m[pi_index].v_bit, groups[i][j].m[k].v_bit);
                     pi.m[pi_index].ones = count_dontcare(groups[i][j].m[k].v_bit, n_vars);
                     pi.m[pi_index].v_int = malloc(sizeof(int)*pi.m[pi_index].ones);
-                    printf("MINTERM: %s | position: %d | checked: %d\n", pi.m[pi_index].v_bit, groups[i][j].m[k].diff_pos, pi.m[pi_index].checked);
+                    // printf("MINTERM: %s | position: %d | checked: %d\n", pi.m[pi_index].v_bit, groups[i][j].m[k].diff_pos, pi.m[pi_index].checked);
                     pi.m[pi_index++].v_int = groups[i][j].m[k].v_int;
                     pi.n_elems = pi_index;
                 }
             }
         }
         n_ones_groups--;
-        printf("n_ones_groups: %d\n", n_ones_groups);
         mult *= 2;
     }
-    // printf("CHAR: %s\n\n", groups[i][0].m[0].v_bit);
     return pi;
 }
 
@@ -248,12 +253,8 @@ void implicants_table(int *count_pi, minterm_group prime_implicants, int n_pi){
 // Identifies the prime implicants
 char *find_pi(minterm_group pi, int var, int *pi_index){
     for (int i = 0; i < pi.n_elems; i++){
-        printf("checked: %d\n", pi.m[i].checked);
-    }
-    for (int i = 0; i < pi.n_elems; i++){
         for (int j = 0; j < pi.m[i].ones; j++){
             if (pi.m[i].v_int[j] == var){
-                printf("var: %d | checked: %d\n", var, pi.m[i].checked);
                 if (pi.m[i].checked == 'v'){
                     return "none";
                 }
@@ -270,7 +271,6 @@ void override_epis(int *count_pi, minterm_group pi, int n_pi){
     int o_index = 0, repeated = 0;
     for (int i = 0; i < n_pi; i++){
         if (count_pi[i] == 1){ // counter vector
-            printf("intizinho: %d\n", i);
             for (int j = 0; j < pi.n_elems; j++){ // implicants
                 for (int k = 0; k < pi.m[j].ones; k++){ // integer implicants
                     if (pi.m[j].v_int[k] == i){
@@ -281,7 +281,8 @@ void override_epis(int *count_pi, minterm_group pi, int n_pi){
                                 }
                             }
                             if (repeated == 0){
-                                aux_override[o_index++] = pi.m[j].v_int[l];
+                                aux_override[o_index] = pi.m[j].v_int[l];
+                                o_index++;
                             }
                             repeated = 0;
                         }
@@ -302,6 +303,7 @@ void override_epis(int *count_pi, minterm_group pi, int n_pi){
     }
 }
 
+// Checks if there is any term yet
 int check_pi_zero(int *count_pi, int n_pi){
     for (int i = 0; i < n_pi; i++){
         if (count_pi[i] > 0){
@@ -311,6 +313,7 @@ int check_pi_zero(int *count_pi, int n_pi){
     return 0;
 }
 
+// Checks if there is any term occuring just once
 int check_pi_one(int *count_pi, int n_pi){
     for (int i = 0; i < n_pi; i++){
         if (count_pi[i] == 1){
@@ -320,6 +323,7 @@ int check_pi_one(int *count_pi, int n_pi){
     return 0;
 }
 
+// Counts how much terms are valid in a minterm
 int *count_elements(minterm_group pi){
     int *aux = malloc(sizeof(int)*pi.n_elems);
     for (int i = 0; i < pi.n_elems; i++){
@@ -327,13 +331,13 @@ int *count_elements(minterm_group pi){
         for (int j = 0; j < pi.m[i].ones; j++){
             if (pi.m[i].v_int[j] != -1){
                 aux[i]++;
-                // printf("elementos: %d | valor: %d\n", aux[i], pi.m[i].v_int[j]);
             }
         }
     }
     return aux;
 }
 
+// If finds any repeated minterms, one is keep on the list and the other is removed
 void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
     int check_counter, aux_index, entry_flag = 0;
     int *aux_remove = malloc(sizeof(int)*pi.n_elems);
@@ -344,12 +348,10 @@ void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
             for (int j = 0; j < pi.m[i].ones; j++){
                 entry_flag = 0;
                 for (int jj = 0; jj < pi.m[ii].ones; jj++){
-                    // printf("v1: %d | v2: %d\n", pi.m[i].v_int[j], pi.m[ii].v_int[jj]);
                     if (pi.m[i].v_int[j] == pi.m[ii].v_int[jj]){
                         check_counter++;
                         if (pi.m[i].v_int[j] != -1){
                             aux_remove[aux_index] = pi.m[ii].v_int[jj];
-                            // printf("aux_remove: %d | check_counter: %d | num_elems: %d\n", aux_remove[aux_index], check_counter, num_elems[ii]);
                             aux_index++;
                         }
                     }
@@ -358,7 +360,6 @@ void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
                             for (int l = 0; l < n_pi; l++){
                                 if (l == aux_remove[k]){
                                     entry_flag = 1;
-                                    printf("    check_counter: %d | num_elems: %d\n", check_counter, pi.m[i].ones);
                                     count_pi[l]--;
                                     num_elems[ii]--;
                                     pi.m[ii].v_int[jj] = -1;
@@ -372,23 +373,19 @@ void remove_repeated(int *count_pi, minterm_group pi, int n_pi, int *num_elems){
     }
 }
 
+// Deal with all terms that appears in more than one minterm
 int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_index){
     int greater, g_index, epi_counter = 0;
     int *num_elems = malloc(sizeof(int)*pi.n_elems);
     num_elems = count_elements(pi);
-    while (check_pi_zero(count_pi, n_pi)) {
-    // for (int g = 0; g < 4; g++){
-        for (int i = 0; i < pi.n_elems; i++){
-            for (int j = 0; j < pi.m[i].ones; j++){
-                printf("elementos: %d | valor: %d\n", num_elems[i], pi.m[i].v_int[j]);
-            }
-        }
+    // TODO arrumar
+    // while (check_pi_zero(count_pi, n_pi)) {
+    for (int g = 0; g < (n_vars*n_vars); g++){
         greater = 0;
         for (int i = 0; i < pi.n_elems; i++){
             if (greater < num_elems[i] && num_elems[i] != -1){
                 greater = num_elems[i];
                 g_index = i;
-                printf("greater: %d | index: %d\n", greater, g_index);
             }
         }
         e_pi[epi_index] = pi.m[g_index].v_bit;
@@ -404,14 +401,11 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
         }
         int aux_int;
         for (int i = 0; i < pi.m[greater].ones; i++){
-            // printf("VALORR: %d\n", pi.m[g_index].v_int[i]);
             if (pi.m[g_index].v_int[i] != -1){
                 aux_int = pi.m[g_index].v_int[i];
-                // printf("aux_int = %d\n", aux_int);
                 for (int j = 0; j < pi.n_elems; j++){
                     for (int k = 0; k < pi.m[j].ones; k++){
                         if (pi.m[j].v_int[k] == aux_int && pi.m[j].v_int[k] != -1){
-                            printf("removed: %d | greater: %d\n", pi.m[j].v_int[k], greater);
                             pi.m[j].v_int[k] = -1;
                             num_elems[j]--;
                         }
@@ -419,15 +413,7 @@ int last_epis (int *count_pi, minterm_group pi, int n_pi, char **e_pi, int epi_i
                 }
             }
         }
-        for (int j = 0; j < n_pi; j++){
-            printf("result2: %d %d\n", j, count_pi[j]);
-        }
-        printf("\n");
         remove_repeated(count_pi, pi, n_pi, num_elems);
-        for (int j = 0; j < n_pi; j++){
-            printf("result3: %d %d\n", j, count_pi[j]);
-        }
-        printf("\n");
     }
 
     return epi_counter;
@@ -438,11 +424,9 @@ int essencials_pi(int *count_pi, minterm_group prime_implicants, int n_pi, char 
     int epi_index = 0, pi_index;
     char *epi_aux = malloc(sizeof(char)*n_vars);
     while (check_pi_one(count_pi, n_pi)){
-    // for(int g = 0; g < 1; g++){
         for (int i = 0; i < n_pi; i++){
             if (count_pi[i] == 1){
                 epi_aux = find_pi(prime_implicants, i, &pi_index);
-                printf("implicants: %s | pi_index: %d\n", epi_aux, pi_index);
                 if (strcmp(epi_aux, "none") != 0){
                     strcpy(essencial_pi[epi_index], epi_aux);
                     prime_implicants.m[pi_index].checked = 'v';
@@ -450,18 +434,9 @@ int essencials_pi(int *count_pi, minterm_group prime_implicants, int n_pi, char 
                 }
             }
         }
-        for (int j = 0; j < n_pi; j++){
-            printf("result0: %d %d\n", j, count_pi[j]);
-        }
-        printf("\n");
         override_epis(count_pi, prime_implicants, n_pi);
-        for (int j = 0; j < n_pi; j++){
-            printf("result1: %d %d\n", j, count_pi[j]);
-        }
-        printf("\n");
     }
     epi_index += last_epis(count_pi, prime_implicants, n_pi, essencial_pi, epi_index);
-    printf("\n");
     return epi_index;
 }
 
